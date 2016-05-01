@@ -13,12 +13,22 @@ do
 	    if [ ${v:0:9} == "-datadir=" ]; then
 		DATADIR=${v:9}
 	    else
-		echo "Unknown command line argument $v"
-		echo "configure can be given the following arguments:"
-		echo "-bytecode (to only build bytecode)"
-		echo "-qeditasdir=<dir> (to specify the install directory)"
-		echo "-datadir=<dir> (to specify the default directory for Qeditas data)"
-		exit 1
+		if [ ${v:0:9} == "-leveldb=" ]; then
+		    LEVELDB=${v:9}
+		else
+		    if [ ${v:0:14} == "-ocamlinclude=" ]; then
+			OCAMLINCLUDE=${v:14}
+		    else
+			echo "Unknown command line argument $v"
+			echo "configure can be given the following arguments:"
+			echo "-bytecode (to only build bytecode)"
+			echo "-qeditasdir=<dir> (to specify the install directory)"
+			echo "-datadir=<dir> (to specify the default directory for Qeditas data)"
+			echo "-leveldb=<dir> (to specify the location of the leveldb library)"
+			echo "-ocamlinclude=<dir> (to specify the location of the ocaml library for interfacing with C/C++)"
+			exit 1
+		    fi
+		fi
 	    fi
 	fi
     fi
@@ -44,7 +54,6 @@ echo let maxconns = ref 200 >> src/config.ml
 echo let seed = ref \"\" >> src/config.ml
 echo let lastcheckpoint = ref \"\" >> src/config.ml
 echo let currledgerroot = ref \"a47da9044687cc40e368fbd60f404ad5b4ddd4cf\" >> src/config.ml
-echo let qednetdexec = ref \"$HOME/qednet/src/qednetd\" >> src/config.ml
 echo let ctreedatadir = ref \"/tmp/deprecated\" >> src/config.ml
 echo let chaindatadir = ref \"/tmp/deprecated\" >> src/config.ml
 echo let prompt = ref \"\> \" >> src/config.ml
@@ -55,6 +64,18 @@ if [ $BYTECODE ]; then
 	exit 1
     fi
 fi
+GCC=`which g++`
+if [ -z $GCC ]; then
+    echo 'Could not find g++'
+    echo 'configure failed'
+    exit 1
+fi
+OCAMLMKLIB=`which ocamlmklib`
+if [ -z $OCAMLMKLIB ]; then
+    echo 'Could not find ocamlmklib'
+    echo 'configure failed'
+    exit 1
+fi
 OCAMLC=`which ocamlc`
 if [ -z $OCAMLC ]; then
     echo 'Could not find ocamlc'
@@ -62,6 +83,14 @@ if [ -z $OCAMLC ]; then
     exit 1
 fi
 echo OCAMLC=$OCAMLC > Makefile
+if [ $LEVELDB ]; then
+    echo LEVELDB=$LEVELDB >> Makefile
+fi
+if [ $OCAMLINCLUDE ]; then
+    echo OCAMLINCLUDE=$OCAMLINCLUDE >> Makefile
+fi
+echo OCAMLMKLIB=$OCAMLMKLIB >> Makefile
+echo GCC=$GCC >> Makefile
 if [ $BYTECODE ]; then
     echo 'all: bytecode' >> Makefile
 else
@@ -74,7 +103,7 @@ else
 	echo 'all: bytecode' >> Makefile
     else
 	echo OCAMLOPT=$OCAMLOPT >> Makefile
-	echo 'all: opt' >> Makefile
+	echo 'all: bytecode' >> Makefile
     fi
 fi
 cat Makefile.in >> Makefile
